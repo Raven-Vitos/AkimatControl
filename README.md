@@ -1,6 +1,6 @@
 
 <div align="center">
-  <img src="docs/public/logo.svg" alt="Akimat Control Logo" width="140">
+  <img src="public/logo.svg" alt="Akimat Control Logo" width="140">
 
   <h1>Akimat Control</h1>
 
