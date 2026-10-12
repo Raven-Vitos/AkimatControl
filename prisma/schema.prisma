@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../server/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+// OVERDUE is never stored: overdue is derived from the deadline so the stage is not lost
+enum TaskStatus {
+  NEW
+  IN_PROGRESS
+  REVIEW
+  COMPLETED
+  OVERDUE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum HistoryAction {
+  CREATED
+  ASSIGNED
+  STARTED
+  SENT_TO_REVIEW
+  RETURNED
+  COMPLETED
+  OVERDUE
+  ESCALATED
+  UPDATED
+}
+
+model Department {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  users User[]
+  tasks Task[]
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  name         String
+  email        String        @unique
+  role         Role
+  position     String        @default("")
+  // scrypt hash "salt:hash"; empty means the user cannot log in
+  passwordHash String        @default("")
+  departmentId Int
+  department   Department    @relation(fields: [departmentId], references: [id])
+  assigned     Task[]        @relation("Assignee")
+  created      Task[]        @relation("Creator")
+  history      TaskHistory[]
+  sessions     Session[]
+}
+
+// Server-side login session; the random id is the value of the httpOnly cookie
+model Session {
+  id        String   @id
+  userId    Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Task {
+  id           Int           @id @default(autoincrement())
+  number       Int           @unique
+  title        String
+  description  String        @default("")
+  status       TaskStatus    @default(NEW)
+  priority     Priority      @default(MEDIUM)
+  deadline     DateTime
+  escalatedAt  DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  departmentId Int
+  assigneeId   Int
+  createdById  Int
+  department   Department    @relation(fields: [departmentId], references: [id])
+  assignee     User          @relation("Assignee", fields: [assigneeId], references: [id])
+  createdBy    User          @relation("Creator", fields: [createdById], references: [id])
+  history      TaskHistory[]
+}
+
+model TaskHistory {
+  id          Int           @id @default(autoincrement())
+  taskId      Int
+  action      HistoryAction
+  description String
+  createdAt   DateTime      @default(now())
+  userId      Int?
+  task        Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user        User?         @relation(fields: [userId], references: [id])
+
+  @@index([taskId])
+}
